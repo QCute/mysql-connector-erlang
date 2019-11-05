@@ -148,7 +148,9 @@ start_pool(Name) ->
 %% @doc start pool with pool boy
 -spec start_pool(Name :: atom(), ConnectorArgs :: list()) -> {ok, Pid :: pid()} | {error, Reason :: term()}.
 start_pool(Name, ConnectorArgs) ->
-    PoolArgs = [{worker, {?MODULE, start_link, [ConnectorArgs]}}, {size, 16}],
+    %% connector number
+    Size = proplists:get_value(pool_size, ConnectorArgs, 16),
+    PoolArgs = [{worker, {?MODULE, start_link, [ConnectorArgs]}}, {size, Size}],
     %% use volley
     start_pool(volley, start_pool, Name, PoolArgs).
 
@@ -585,10 +587,10 @@ send_packet(State = #state{module = Module, socket = Socket, number = Number}, P
     send_packet(Module, Socket, Packet, Number + 1),
     State#state{number = Number + 1}.
 send_packet(gen_tcp, Socket, Packet, SequenceNumber) when is_binary(Packet), is_integer(SequenceNumber) ->
-    Data = <<(size(Packet)):24/little, SequenceNumber:8, Packet/binary>>,
+    Data = <<(byte_size(Packet)):24/little, SequenceNumber:8, Packet/binary>>,
     gen_tcp:send(Socket, Data);
 send_packet(ssl, Socket, Packet, SequenceNumber) when is_binary(Packet), is_integer(SequenceNumber) ->
-    Data = <<(size(Packet)):24/little, SequenceNumber:8, Packet/binary>>,
+    Data = <<(byte_size(Packet)):24/little, SequenceNumber:8, Packet/binary>>,
     ssl:send(Socket, Data).
 
 %% read packet with default timeout
@@ -679,7 +681,7 @@ decode_fields(State, List) ->
     case read(State) of
         {ok, NewState = #state{packet = <<?EOF:8>>}} ->
             {ok, NewState#state{fields = lists:reverse(List)}};
-        {ok, NewState = #state{packet = <<?EOF:8, Rest/binary>>}} when size(Rest) < 8 ->
+        {ok, NewState = #state{packet = <<?EOF:8, Rest/binary>>}} when byte_size(Rest) < 8 ->
             {ok, NewState#state{fields = lists:reverse(List)}};
         {ok, NewState = #state{packet = Packet}} ->
             {_Catalog, Rest} = decode_packet(Packet),
@@ -702,7 +704,7 @@ decode_fields(State, List) ->
 %% get rows
 decode_rows(State = #state{fields = Fields}, List) ->
     case read(State) of
-        {ok, NewState = #state{packet = <<?EOF:8, Rest/binary>>}} when size(Rest) < 8 ->
+        {ok, NewState = #state{packet = <<?EOF:8, Rest/binary>>}} when byte_size(Rest) < 8 ->
             {ok, NewState#state{rows = lists:reverse(List)}};
         {ok, #state{packet = <<?ERROR:8, Rest/binary>>}} ->
             {error, decode_error_result(Rest)};
