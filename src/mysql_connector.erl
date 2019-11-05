@@ -8,7 +8,7 @@
 -module(mysql_connector).
 %% API
 %% pool support
--export([start_pool/0, start_pool/1, start_pool/2, start_pool/4]).
+-export([start_pool/0, start_pool/1, start_pool/2, start_pool/3, start_pool/4]).
 %% server entry
 -export([start_link/1, start/1]).
 %% main query interface
@@ -139,17 +139,23 @@ start_pool() ->
     start_pool(?MODULE).
 
 %% @doc start pool with pool boy(args pass by application config)
--spec start_pool(Name :: atom()) -> {ok, Pid :: pid()} | {error, Reason :: term()}.
+-spec start_pool(Name :: atom(), Size :: non_neg_integer()) -> {ok, Pid :: pid()} | {error, Reason :: term()}.
 start_pool(Name) ->
     %% read connector config from application env(config file)
     {ok, ConnectorArgs} = application:get_env(Name),
-    start_pool(Name, ConnectorArgs).
+    start_pool(Name, 1, ConnectorArgs).
+
+%% @doc start pool with pool boy(args pass by application config)
+-spec start_pool(Name :: atom(), Size :: non_neg_integer()) -> {ok, Pid :: pid()} | {error, Reason :: term()}.
+start_pool(Name, Size) ->
+    %% read connector config from application env(config file)
+    {ok, ConnectorArgs} = application:get_env(Name),
+    start_pool(Name, Size, ConnectorArgs).
 
 %% @doc start pool with pool boy
--spec start_pool(Name :: atom(), ConnectorArgs :: list()) -> {ok, Pid :: pid()} | {error, Reason :: term()}.
-start_pool(Name, ConnectorArgs) ->
+-spec start_pool(Name :: atom(), Size :: non_neg_integer(), ConnectorArgs :: list()) -> {ok, Pid :: pid()} | {error, Reason :: term()}.
+start_pool(Name, Size, ConnectorArgs) ->
     %% connector number
-    Size = proplists:get_value(pool_size, ConnectorArgs, 16),
     PoolArgs = [{worker, {?MODULE, start_link, [ConnectorArgs]}}, {size, Size}],
     %% use volley
     start_pool(volley, start_pool, Name, PoolArgs).
