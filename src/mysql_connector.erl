@@ -627,9 +627,7 @@ read(State = #state{socket = Socket, data = Data}, Timeout) ->
         {tcp_error, Socket, Reason} ->
             {error, Reason};
         {tcp_closed, Socket} ->
-            {error, tcp_closed};
-        Error ->
-            {error, Error}
+            {error, tcp_closed}
     after Timeout ->
         {error, receive_timeout}
     end.
