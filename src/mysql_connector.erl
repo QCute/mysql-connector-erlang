@@ -114,9 +114,9 @@
 %% mysql connection state
 -record(state, {
     socket_type :: gen_tcp | ssl,
-    socket :: gen_tcp:socket() | ssl:socket(),
+    socket :: gen_tcp:socket() | ssl:sslsocket(),
     data = <<>> :: binary(),
-    number = 0 :: non_neg_integer()
+    number = 0 :: integer()
 }).
 
 %%%==================================================================
@@ -124,16 +124,16 @@
 %%%==================================================================
 
 %% mysql connector arguments supported
-%% |---------------|---------------|--------------|
+%% +---------------+---------------+--------------+
 %% |   key         |   value       |  default     |
-%% |---------------|---------------|--------------|
+%% +---------------+---------------+--------------+
 %% |   {host,      |   Host},      |  "localhost" |
 %% |   {port       |   Port},      |  3306        |
 %% |   {user,      |   User},      |  ""          |
 %% |   {password,  |   Password},  |  ""          |
 %% |   {database,  |   Database},  |  ""          |
 %% |   {encoding,  |   Encoding}   |  ""          |
-%% |---------------|---------------|--------------|
+%% +---------------+---------------+--------------+
 
 %% @doc start link
 -spec start_link(Args :: list()) -> term().
