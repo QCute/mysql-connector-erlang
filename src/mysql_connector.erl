@@ -11,15 +11,17 @@
 %%%-------------------------------------------------------------------
 -module(mysql_connector).
 -behavior(application).
-%% API
--export([start/2, stop/1]).
+-behavior(gen_server).
+%% API functions
 -export([start_link/1]).
-%% get state
--export([get_state/0, get_state/1]).
 %% normal query interface
 -export([execute/1, execute/2, execute/3, query/1, query/2, query/3, select/1, select/2, select/3, insert/1, insert/2, insert/3, update/1, update/2, update/3, delete/1, delete/2, delete/3]).
 %% get execute result info interface
 -export([get_insert_id/1, get_affected_rows/1, get_fields_info/1, get_rows/1, get_error_code/1, get_error_status/1, get_error_message/1]).
+%% application callbacks
+-export([start/2, stop/1]).
+%% gen_server callbacks
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 %%%-------------------------------------------------------------------
 %%% Macros
 %%%-------------------------------------------------------------------
@@ -164,18 +166,6 @@
 %%%===================================================================
 %%% API functions
 %%%===================================================================
-%% @doc start 
--spec start(term(), list()) -> {ok, pid()} | {ok, pid(), term()} | {error, term()}.
-start(_, _) ->
-    {ok, Args} = application:get_env(mysql_connector),
-    {ok, Pid} = start_link(Args),
-    erlang:register(?MODULE, Pid),
-    {ok, Pid}.
-
-%% @doc stop 
--spec stop(term()) -> ok.
-stop(_) ->
-    ok.
 
 %% mysql connector arguments supported
 %% +---------------------+---------------------+---------------------+
@@ -190,36 +180,9 @@ stop(_) ->
 %% +---------------------+---------------------+---------------------+
 
 %% @doc start link
--spec start_link(Args :: [{Key :: atom(), Value :: list() | binary()}]) -> {ok, pid()}.
+-spec start_link(Args :: [{Key :: atom(), Value :: list()}]) -> {'ok', pid()} | 'ignore' | {'error', term()}.
 start_link(Args) ->
-    Parent = self(),
-    erlang:process_flag(trap_exit, true),
-    Pid = erlang:spawn_link(fun() -> init(Parent, Args) end),
-    receive
-        {Pid, connected} ->
-            {ok, Pid};
-        {'EXIT', _, Reason} ->
-            erlang:exit(Reason);
-        Result ->
-            erlang:exit(Result)
-    end.
-
-%% @doc get state
--spec get_state() -> #state{}.
-get_state() ->
-    get_state(?MODULE).
-
-%% @doc get state
--spec get_state(Connector :: pid() | atom()) -> #state{}.
-get_state(Connector) ->
-    MonitorRef = erlang:monitor(process, Connector),
-    erlang:send(Connector, {get_state, self(), MonitorRef}),
-    receive
-        {MonitorRef, State} ->
-            State;
-        {'DOWN', MonitorRef, _, _, Reason} ->
-            erlang:exit(Reason)
-    end.
+    gen_server:start_link(?MODULE, Args, []).
 
 %% execute result
 %% +-----------------------------++----------------------------------+
@@ -250,15 +213,11 @@ execute(Sql, Connector) ->
 %% @doc execute
 -spec execute(Sql :: list() | binary(), Connector :: pid() | atom(), Timeout :: non_neg_integer() | infinity) -> #ok{} | #data{} | #error{}.
 execute(Sql, Connector, Timeout) ->
-    MonitorRef = erlang:monitor(process, Connector),
-    erlang:send(Connector, {execute, self(), MonitorRef, Sql}),
-    receive
-        {MonitorRef, Result} ->
-            Result;
-        {'DOWN', MonitorRef, _, _, Reason} ->
-            erlang:exit(Reason)
-    after Timeout ->
-        #error{message = <<"timeout">>}
+    case catch gen_server:call(Connector, {execute, Sql}, Timeout) of
+        {'EXIT', {timeout, _}} ->
+            #error{message = <<"timeout">>};
+        Result ->
+            Result
     end.
 
 %% @doc query
@@ -401,17 +360,66 @@ get_error_message(#error{message = Message}) ->
     Message.
 
 %%%===================================================================
-%%% Internal functions
+%%% application callbacks
 %%%===================================================================
-init(Parent, Args) ->
+%% @doc start
+-spec start(StartType :: term(), StartArgs :: list()) -> {ok, pid()} | {ok, pid(), term()} | {error, term()}.
+start(_, _) ->
+    {ok, Args} = application:get_env(mysql_connector),
+    gen_server:start_link({local, ?MODULE}, ?MODULE, Args, []).
+
+%% @doc stop
+-spec stop(State :: term()) -> ok.
+stop(_) ->
+    ok.
+
+%%%===================================================================
+%%% gen_server callbacks
+%%%===================================================================
+%% @doc init
+-spec init(Args :: term()) -> {ok, State :: #state{}, timeout()}.
+init(Args) ->
     process_flag(trap_exit, true),
     %% connect and login
     State = connect(Args),
-    %% login succeeded
-    erlang:send(Parent, {self(), connected}),
-    %% enter main loop
-    loop(State#state{data = <<>>, number = 0}).
+    {ok, State#state{data = <<>>, number = 0}, 60 * 1000}.
 
+%% @doc handle_call
+-spec handle_call(Request :: term(), From :: {pid(), Tag :: term()}, State :: #state{}) -> {reply, Reply :: term(), State :: #state{}, timeout()}.
+handle_call({execute, Sql}, _From, State) ->
+    {reply, execute_sql(State, Sql), State, 60 * 1000};
+
+handle_call(_Info, _From, State) ->
+    {reply, ok, State, 60 * 1000}.
+
+%% @doc handle_cast
+-spec handle_cast(Request :: term(), State :: #state{}) -> {noreply, NewState :: #state{}, timeout()}.
+handle_cast(_Info, State) ->
+    {noreply, State, 60 * 1000}.
+
+%% @doc handle_info
+-spec handle_info(Info :: timeout | term(), State :: term()) -> {noreply, NewState :: #state{}, timeout()}.
+handle_info(timeout, State) ->
+    ping(State),
+    {noreply, State, 60 * 1000};
+
+handle_info(_Info, State) ->
+    {noreply, State, 60 * 1000}.
+
+%% @doc terminate
+-spec terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()), State :: #state{}) -> {ok, NewState :: #state{}}.
+terminate(_Reason, State) ->
+    quit(State),
+    {ok, State}.
+
+%% @doc code_change
+-spec code_change(OldVsn :: (term() | {down, term()}), State :: #state{}, Extra :: term()) -> {ok, NewState :: #state{}}.
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
 %% tcp socket connect
 connect(Args) ->
     Host     = proplists:get_value(host,     Args, "localhost"),
@@ -430,28 +438,6 @@ connect(Args) ->
             NewState;
         {error, Reason} ->
             erlang:exit(Reason)
-    end.
-
-%% main loop
-loop(State) ->
-    receive
-        {execute, From, MonitorRef, Request} ->
-            %% normal query
-            Result = execute_sql(State, Request),
-            erlang:send(From, {MonitorRef, Result}),
-            loop(State);
-        {get_state, From, MonitorRef} ->
-            %% get state
-            erlang:send(From, {MonitorRef, State}),
-            loop(State);
-        {'EXIT', _From, Reason} ->
-            %% shutdown request, stop it
-            quit(State),
-            erlang:exit(Reason)
-        after 60 * 1000 ->
-            %% ping after 60 seconds without operation
-            ping(State),
-            loop(State)
     end.
 
 %%%===================================================================
