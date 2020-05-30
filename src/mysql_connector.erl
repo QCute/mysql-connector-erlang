@@ -213,12 +213,7 @@ execute(Sql, Connector) ->
 %% @doc execute
 -spec execute(Sql :: list() | binary(), Connector :: pid() | atom(), Timeout :: non_neg_integer() | infinity) -> #ok{} | #data{} | #error{}.
 execute(Sql, Connector, Timeout) ->
-    case catch gen_server:call(Connector, {execute, Sql}, Timeout) of
-        {'EXIT', {timeout, _}} ->
-            #error{message = <<"timeout">>};
-        Result ->
-            Result
-    end.
+    gen_server:call(Connector, {execute, Sql}, Timeout).
 
 %% @doc query
 -spec query(Sql :: list() | binary()) -> non_neg_integer() | list().
