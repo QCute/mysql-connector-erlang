@@ -222,8 +222,8 @@ query(Sql) ->
 
 %% @doc query
 -spec query(Sql :: list() | binary(), Connector :: pid() | atom()) -> non_neg_integer() | list().
-query(Sql, Pid) ->
-    query(Sql, Pid, infinity).
+query(Sql, Connector) ->
+    query(Sql, Connector, infinity).
 
 %% @doc query
 -spec query(Sql :: list() | binary(), Connector :: pid() | atom(), Timeout :: non_neg_integer() | infinity) -> non_neg_integer() | list().
@@ -290,9 +290,9 @@ update(Sql, Connector) ->
     update(Sql, Connector, infinity).
 
 %% @doc update
--spec update(Sql :: list() | binary(), Pid :: pid() | atom(), non_neg_integer() | infinity) -> {ok, AffectedRows :: non_neg_integer()} | {error, Code :: non_neg_integer(), Message :: binary()}.
-update(Sql, Pid, Timeout) ->
-    case execute(Sql, Pid, Timeout) of
+-spec update(Sql :: list() | binary(), Connector :: pid() | atom(), non_neg_integer() | infinity) -> {ok, AffectedRows :: non_neg_integer()} | {error, Code :: non_neg_integer(), Message :: binary()}.
+update(Sql, Connector, Timeout) ->
+    case execute(Sql, Connector, Timeout) of
         #ok{affected_rows = AffectedRows} ->
             {ok, AffectedRows};
         #error{code = Code, message = Message} ->
@@ -525,7 +525,11 @@ decode_handshake(<<10:8, Rest/binary>>) ->
     %% plugin name
     %% MySQL server 5.5.8 has a bug where end byte is not send
     [Plugin | _] = binary:split(Rest3, <<0>>),
-    #handshake{version = Version, id = ConnectionId, capabilities = Capabilities, charset = CharSet, status = Status, salt = <<Salt1/binary, Salt2/binary>>, plugin = Plugin}.
+    #handshake{version = Version, id = ConnectionId, capabilities = Capabilities, charset = CharSet, status = Status, salt = <<Salt1/binary, Salt2/binary>>, plugin = Plugin};
+decode_handshake(<<?ERROR:8, Code:16, Rest/binary>>) ->
+    erlang:exit({handshake_error, Code, Rest});
+decode_handshake(<<Protocol:8, _/binary>>) ->
+    erlang:exit({unsupported_handshake_protocol, Protocol}).
 
 %% authentication plugin switch response
 encode_switch_handshake(#state{}, #handshake{capabilities = Capabilities, charset = Charset}, _, _, _) ->
