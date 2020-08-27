@@ -18,6 +18,10 @@
 -export([execute/1, execute/2, execute/3, query/1, query/2, query/3, select/1, select/2, select/3, insert/1, insert/2, insert/3, update/1, update/2, update/3, delete/1, delete/2, delete/3]).
 %% get execute result info interface
 -export([get_insert_id/1, get_affected_rows/1, get_fields_info/1, get_rows/1, get_error_code/1, get_error_status/1, get_error_message/1]).
+%% prepare interface
+-export([prepare/2, prepare/3, prepare/4, execute_prepare/2, execute_prepare/3, execute_prepare/4, drop_prepare/1, drop_prepare/2, drop_prepare/3]).
+%% transaction
+-export([transaction/1, transaction/2, transaction/3]).
 %% application callbacks
 -export([start/2, stop/1]).
 %% gen_server callbacks
@@ -354,6 +358,110 @@ get_error_status(#error{status = Status}) ->
 get_error_message(#error{message = Message}) ->
     Message.
 
+%% @doc prepare
+-spec prepare(Name :: atom(), Statement :: list() | binary()) -> non_neg_integer() | list().
+prepare(Name, Statement) ->
+    prepare(Name, Statement, ?MODULE).
+
+%% @doc prepare
+-spec prepare(Name :: atom(), Statement :: list() | binary(), Connector :: pid() | atom()) -> non_neg_integer() | list().
+prepare(Name, Statement, Connector) ->
+    prepare(Name, Statement, Connector, infinity).
+
+%% @doc prepare
+-spec prepare(Name :: atom(), Statement :: list() | binary(), Connector :: pid() | atom(), Timeout :: non_neg_integer() | infinity) -> non_neg_integer() | list().
+prepare(Name, Statement, Connector, Timeout) ->
+    query(<<"PREPARE ", (atom_to_binary(Name, utf8))/binary, " FROM '", (iolist_to_binary(Statement))/binary, "'">>, Connector, Timeout).
+
+%% @doc execute prepare
+-spec execute_prepare(Name :: atom(), Statement :: list() | binary()) -> non_neg_integer() | list().
+execute_prepare(Name, Parameter) ->
+    execute_prepare(Name, Parameter, ?MODULE).
+
+%% @doc execute prepare
+-spec execute_prepare(Name :: atom(), Statement :: list() | binary(), Connector :: pid() | atom()) -> non_neg_integer() | list().
+execute_prepare(Name, Parameter, Connector) ->
+    execute_prepare(Name, Parameter, Connector, infinity).
+
+%% @doc execute prepare
+-spec execute_prepare(Name :: atom(), Statement :: list() | binary(), Connector :: pid() | atom(), Timeout :: non_neg_integer() | infinity) -> non_neg_integer() | list().
+execute_prepare(Name, Parameter, Connector, Timeout) ->
+    query(<<"EXECUTE ", (atom_to_binary(Name, utf8))/binary, " USING ", (iolist_to_binary(Parameter))/binary>>, Connector, Timeout).
+
+%% @doc drop prepare
+-spec drop_prepare(Name :: atom()) -> non_neg_integer() | list().
+drop_prepare(Name) ->
+    drop_prepare(Name, ?MODULE).
+
+%% @doc drop prepare
+-spec drop_prepare(Name :: atom(), Connector :: pid() | atom()) -> non_neg_integer() | list().
+drop_prepare(Name, Connector) ->
+    drop_prepare(Name, Connector, infinity).
+
+%% @doc drop prepare
+-spec drop_prepare(Name :: atom(), Connector :: pid() | atom(), Timeout :: non_neg_integer() | infinity) -> non_neg_integer() | list().
+drop_prepare(Name, Connector, Timeout) ->
+    query(<<"DROP PREPARE ", (atom_to_binary(Name, utf8))/binary>>, Connector, Timeout).
+
+%% @doc transaction
+-spec transaction(F :: function()) -> non_neg_integer() | list().
+transaction(F) ->
+    transaction(F, ?MODULE).
+
+%% @doc transaction
+-spec transaction(Name :: function(), Connector :: pid() | atom()) -> non_neg_integer() | list().
+transaction(F, Connector) ->
+    transaction(F, Connector, infinity).
+
+%% @doc transaction
+-spec transaction(Name :: function(), Connector :: pid() | atom(), Timeout :: non_neg_integer() | infinity) -> non_neg_integer() | list().
+transaction(F, Connector, Timeout) ->
+    case begin_transaction(F, Connector, Timeout) of
+        #ok{insert_id = 0, affected_rows = AffectedRows} ->
+            AffectedRows;
+        #ok{insert_id = InsertId} ->
+            InsertId;
+        #data{rows = Rows} ->
+            Rows;
+        #error{code = Code, message = Message} ->
+            erlang:exit({mysql_error, {F, Code, Message}})
+    end.
+
+%% begin
+begin_transaction(F, Connector, Timeout) ->
+    case execute(<<"BEGIN">>, Connector, Timeout) of
+        #ok{} ->
+            execute_transaction(F, Connector, Timeout);
+        Error ->
+            Error
+    end.
+
+%% transaction
+execute_transaction(F, Connector, Timeout) ->
+    try
+        commit_transaction(exit, F(), Connector, Timeout)
+    catch Class:Reason ->
+        rollback_transaction(Class, Reason, Connector, Timeout)
+    end.
+
+%% commit
+commit_transaction(Class, Result, Connector, Timeout) ->
+    case execute(<<"COMMIT">>, Connector, Timeout) of
+        #ok{} ->
+            Result;
+        _ ->
+            rollback_transaction(Class, Result, Connector, Timeout)
+    end.
+
+%% rollback
+rollback_transaction(Class, Result, Connector, Timeout) ->
+    case execute(<<"ROLLBACK">>, Connector, Timeout) of
+        #ok{} ->
+            erlang:Class(Result);
+        Error ->
+            Error
+    end.
+
 %%%===================================================================
 %%% application callbacks
 %%%===================================================================
@@ -629,8 +737,8 @@ set_encoding(State, Encoding) ->
 %%% io part
 %%%===================================================================
 %% send packet
-send_packet(State = #state{socket_type = Module, socket = Socket, number = Number}, Packet) ->
-    send_packet(Module, Socket, Packet, Number + 1),
+send_packet(State = #state{socket_type = SocketType, socket = Socket, number = Number}, Packet) ->
+    send_packet(SocketType, Socket, Packet, Number + 1),
     State#state{number = Number + 1}.
 
 %% send it
