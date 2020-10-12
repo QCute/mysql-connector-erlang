@@ -31,90 +31,97 @@
 %%%-------------------------------------------------------------------
 %% https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__capabilities__flags.html
 %% --- capability flags ---
--define(CLIENT_LONG_PASSWORD,                     (1 bsl 0)).   %% /* new more secure passwords */
--define(CLIENT_FOUND_ROWS,                        (1 bsl 1)).   %% /* Found instead of affected rows */
--define(CLIENT_LONG_FLAG,                         (1 bsl 2)).   %% /* Get all column flags */
--define(CLIENT_CONNECT_WITH_DB,                   (1 bsl 3)).   %% /* One can specify db on connect */
--define(CLIENT_NO_SCHEMA,                         (1 bsl 4)).   %% /* Don't allow database.table.column */
--define(CLIENT_COMPRESS,                          (1 bsl 5)).   %% /* Can use compression protocol */
--define(CLIENT_ODBC,                              (1 bsl 6)).   %% /* Odbc client */
--define(CLIENT_LOCAL_FILES,                       (1 bsl 7)).   %% /* Can use LOAD DATA LOCAL */
--define(CLIENT_IGNORE_SPACE,                      (1 bsl 8)).   %% /* Ignore spaces before '(' */
--define(CLIENT_PROTOCOL_41,                       (1 bsl 9)).   %% /* New 4.1 protocol */
--define(CLIENT_INTERACTIVE,                       (1 bsl 10)).  %% /* This is an interactive client */
--define(CLIENT_SSL,                               (1 bsl 11)).  %% /* Switch to SSL after handshake */
--define(CLIENT_IGNORE_SIGPIPE,                    (1 bsl 12)).  %% /* IGNORE signal pipes */
--define(CLIENT_TRANSACTIONS,                      (1 bsl 13)).  %% /* Client knows about transactions */
--define(CLIENT_RESERVED,                          (1 bsl 14)).  %% /* Old flag for 4.1 protocol  */
--define(CLIENT_RESERVED_2,                        (1 bsl 15)).  %% /* Old flag for 4.1 authentication */
--define(CLIENT_MULTI_STATEMENTS,                  (1 bsl 16)).  %% /* Enable/disable multi-stmt support */
--define(CLIENT_MULTI_RESULTS,                     (1 bsl 17)).  %% /* Enable/disable multi-results */
--define(CLIENT_PS_MULTI_RESULTS,                  (1 bsl 18)).  %% /* Multi-results in PS-protocol */
--define(CLIENT_PLUGIN_AUTH,                       (1 bsl 19)).  %% /* Client supports plugin authentication */
--define(CLIENT_CONNECT_ATTRS,                     (1 bsl 20)).  %% /* Client supports connection attributes */
+-define(CLIENT_LONG_PASSWORD,                         16#00000001).
+-define(CLIENT_FOUND_ROWS,                            16#00000002).
+-define(CLIENT_LONG_FLAG,                             16#00000004).
+-define(CLIENT_CONNECT_WITH_DB,                       16#00000008).
+-define(CLIENT_NO_SCHEMA,                             16#00000010).
+-define(CLIENT_COMPRESS,                              16#00000020).
+-define(CLIENT_ODBC,                                  16#00000040).
+-define(CLIENT_LOCAL_FILES,                           16#00000080).
+-define(CLIENT_IGNORE_SPACE,                          16#00000100).
+-define(CLIENT_PROTOCOL_41,                           16#00000200).
+-define(CLIENT_INTERACTIVE,                           16#00000400).
+-define(CLIENT_SSL,                                   16#00000800).
+-define(CLIENT_IGNORE_SIGPIPE,                        16#00001000).
+-define(CLIENT_TRANSACTIONS,                          16#00002000).
+-define(CLIENT_RESERVED,                              16#00004000).
+-define(CLIENT_RESERVED_2,                            16#00008000).
+-define(CLIENT_MULTI_STATEMENTS,                      16#00010000).
+-define(CLIENT_MULTI_RESULTS,                         16#00020000).
+-define(CLIENT_PS_MULTI_RESULTS,                      16#00040000).
+-define(CLIENT_PLUGIN_AUTH,                           16#00080000).
+-define(CLIENT_CONNECT_ATTRS,                         16#00100000).
+-define(CLIENT_PLUGIN_AUTH_LEN_ENC_CLIENT_DATA,       16#00200000).
+-define(CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS,          16#00400000).
+-define(CLIENT_SESSION_TRACK,                         16#00800000).
+-define(CLIENT_DEPRECATE_EOF,                         16#01000000).
+-define(CLIENT_OPTIONAL_RESULT_SET_METADATA,          16#02000000).
+-define(CLIENT_Z_STD_COMPRESSION_ALGORITHM,           16#04000000).
+-define(CLIENT_SSL_VERIFY_SERVER_CERT,                16#40000000).
+-define(CLIENT_REMEMBER_OPTIONS,                      16#80000000).
 
-%% /* Enable authentication response packet to be larger than 255 bytes. */
--define(CLIENT_PLUGIN_AUTH_LEN_ENC_CLIENT_DATA,   (1 bsl 21)).
-%% /* Don't close the connection for a connection with expired password. */
--define(CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS,      (1 bsl 22)).
-
-%% /**
-%% Capable of handling server state change information. Its a hint to the
-%% server to include the state change information in Ok packet.
-%% */
--define(CLIENT_SESSION_TRACK,                     (1 bsl 23)).
-%% /* Client no longer needs EOF packet */
--define(CLIENT_DEPRECATE_EOF,                     (1 bsl 24)).
--define(CLIENT_OPTIONAL_RESULT_SET_METADATA,      (1 bsl 25)).
--define(CLIENT_Z_STD_COMPRESSION_ALGORITHM,       (1 bsl 26)).
--define(CLIENT_SSL_VERIFY_SERVER_CERT,            (1 bsl 30)).
--define(CLIENT_REMEMBER_OPTIONS,                  (1 bsl 31)).
+%% https://dev.mysql.com/doc/dev/mysql-server/latest/mysql__com_8h.html#a1d854e841086925be1883e4d7b4e8cad
+%% status enum flags include/mysql_com.h
+%% -- server status flags --
+-define(SERVER_STATUS_IN_TRANS,                       16#00000001).
+-define(SERVER_STATUS_AUTOCOMMIT,                     16#00000002).
+-define(SERVER_MORE_RESULTS_EXISTS,                   16#00000008).
+-define(SERVER_STATUS_NO_GOOD_INDEX_USED,             16#00000010).
+-define(SERVER_STATUS_NO_INDEX_USED,                  16#00000020).
+-define(SERVER_STATUS_CURSOR_EXISTS,                  16#00000040).
+-define(SERVER_STATUS_LAST_ROW_SENT,                  16#00000080).
+-define(SERVER_STATUS_DB_DROPPED,                     16#00000100).
+-define(SERVER_STATUS_NO_BACKSLASH_ESCAPES,           16#00000200).
+-define(SERVER_STATUS_METADATA_CHANGED,               16#00000400).
+-define(SERVER_QUERY_WAS_SLOW,                        16#00000800).
+-define(SERVER_PS_OUT_PARAMS,                         16#00001000).
+-define(SERVER_STATUS_IN_TRANS_READONLY,              16#00002000).
+-define(SERVER_SESSION_STATE_CHANGED,                 16#00004000).
 
 %% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html
 %% -- command --
--define(COM_SLEEP,                 16#00).
--define(COM_QUIT,                  16#01).
--define(COM_INIT_DB,               16#02).
--define(COM_QUERY,                 16#03).
--define(COM_FIELD_LIST,            16#04).
--define(COM_CREATE_DB,             16#05).
--define(COM_DROP_DB,               16#06).
--define(COM_REFRESH,               16#07).
--define(COM_SHUTDOWN,              16#08).
--define(COM_STATISTICS,            16#09).
--define(COM_PROCESS_INFO,          16#0a).
--define(COM_CONNECT,               16#0b).
--define(COM_PROCESS_KILL,          16#0c).
--define(COM_DEBUG,                 16#0d).
--define(COM_PING,                  16#0e).
--define(COM_TIME,                  16#0f).
--define(COM_DELAYED_INSERT,        16#10).
--define(COM_CHANGE_USER,           16#11).
--define(COM_BINLOG_DUMP,           16#12).
--define(COM_TABLE_DUMP,            16#13).
--define(COM_CONNECT_OUT,           16#14).
--define(COM_REGISTER_SLAVE,        16#15).
--define(COM_STMT_PREPARE,          16#16).
--define(COM_STMT_EXECUTE,          16#17).
--define(COM_STMT_SEND_LONG_DATA,   16#18).
--define(COM_STMT_CLOSE,            16#19).
--define(COM_STMT_RESET,            16#1a).
--define(COM_SET_OPTION,            16#1b).
--define(COM_STMT_FETCH,            16#1c).
+-define(COM_SLEEP,                                    16#00).
+-define(COM_QUIT,                                     16#01).
+-define(COM_INIT_DB,                                  16#02).
+-define(COM_QUERY,                                    16#03).
+-define(COM_FIELD_LIST,                               16#04).
+-define(COM_CREATE_DB,                                16#05).
+-define(COM_DROP_DB,                                  16#06).
+-define(COM_REFRESH,                                  16#07).
+-define(COM_SHUTDOWN,                                 16#08).
+-define(COM_STATISTICS,                               16#09).
+-define(COM_PROCESS_INFO,                             16#0A).
+-define(COM_CONNECT,                                  16#0B).
+-define(COM_PROCESS_KILL,                             16#0C).
+-define(COM_DEBUG,                                    16#0D).
+-define(COM_PING,                                     16#0E).
+-define(COM_TIME,                                     16#0F).
+-define(COM_DELAYED_INSERT,                           16#10).
+-define(COM_CHANGE_USER,                              16#11).
+-define(COM_BINLOG_DUMP,                              16#12).
+-define(COM_TABLE_DUMP,                               16#13).
+-define(COM_CONNECT_OUT,                              16#14).
+-define(COM_REGISTER_SLAVE,                           16#15).
+-define(COM_STMT_PREPARE,                             16#16).
+-define(COM_STMT_EXECUTE,                             16#17).
+-define(COM_STMT_SEND_LONG_DATA,                      16#18).
+-define(COM_STMT_CLOSE,                               16#19).
+-define(COM_STMT_RESET,                               16#1A).
+-define(COM_SET_OPTION,                               16#1B).
+-define(COM_STMT_FETCH,                               16#1C).
 
-%%%-------------------------------------------------------------------
-%% MySQL Authentication
 %% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_character_set.html
+%% SELECT `id`, `collation_name` FROM information_schema.`collations` ORDER BY `id`;
 %% --- basic character set ---
--define(UTF8MB4_GENERAL_CI,        16#2D). %% utf8mb4_general_ci
--define(UTF8MB4_UNICODE_CI,        16#E0). %% utf8mb4_unicode_ci
+-define(UTF8MB4_GENERAL_CI,                           16#002D).
+-define(UTF8MB4_UNICODE_CI,                           16#00E0).
 
-%%%-------------------------------------------------------------------
 %% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_response_packets.html
-%% base response packets
--define(OK,                        16#00). %% 0
--define(EOF,                       16#FE). %% 254
--define(ERROR,                     16#FF). %% 255
+%% generic response packets
+-define(OK,                                           16#00).
+-define(EOF,                                          16#FE).
+-define(ERROR,                                        16#FF).
 
 %%%-------------------------------------------------------------------
 %%% Records
@@ -124,19 +131,13 @@
     affected_rows = 0 :: non_neg_integer(),
     insert_id = 0 :: non_neg_integer(),
     status = 0 :: non_neg_integer(),
-    warning_count = 0 :: non_neg_integer(),
+    warnings_number = 0 :: non_neg_integer(),
     message = <<>> :: binary()
-}).
-
-%% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html
--record(data, {
-    fields_info = [] :: list(),
-    rows = [] :: list()
 }).
 
 %% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_eof_packet.html
 -record(eof, {
-    warning_count = 0 :: non_neg_integer(),
+    warnings_number = 0 :: non_neg_integer(),
     status = 0 :: non_neg_integer()
 }).
 
@@ -157,6 +158,12 @@
     status = 0 :: integer(),
     salt = <<>> :: binary(),
     plugin = <<>> :: binary()
+}).
+
+%% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response.html
+-record(data, {
+    fields_info = [] :: list(),
+    rows = [] :: list()
 }).
 
 %% mysql connection state
@@ -584,7 +591,7 @@ verify(State, Handshake, Password) ->
             %% New auth success
             %% {AffectedRows, Rest1} = decode_packet(Rest),
             %% {InsertId, Rest2} = decode_packet(Rest1),
-            %% <<StatusFlags:16/little, WarningCount:16/little, Msg/binary>> = Rest2,
+            %% <<StatusFlags:16/little, WarningsNumber:16/little, Msg/binary>> = Rest2,
             %% check status, ignoring bit 16#4000, SERVER_SESSION_STATE_CHANGED
             %% and bit 16#0002, SERVER_STATUS_AUTOCOMMIT.
             NewState;
@@ -595,7 +602,7 @@ verify(State, Handshake, Password) ->
             %% capability is not supported (by either the client or the server)
             %% MySQL 4.0 or earlier old auth already unsupported
             erlang:exit(unsupported_authentication_method);
-        {<<?EOF, SwitchData/binary>>, NewState} ->
+        {<<?EOF:8, SwitchData/binary>>, NewState} ->
             %% Authentication Method Switch Request Packet. If both server and
             %% client support CLIENT_PLUGIN_AUTH capability, server can send
             %% this packet to ask client to use another authentication method.
@@ -645,7 +652,7 @@ encode_switch_handshake(#state{}, #handshake{capabilities = Capabilities, charse
     <<Flag:32/little, ?CLIENT_SSL_VERIFY_SERVER_CERT:32/little, Charset:8, 0:23/unit:8>>.
 
 %% new authentication method mysql_native_password support mysql 5.x or later
-encode_handshake(#state{}, #handshake{capabilities = Capabilities, charset = Charset, salt =  Salt, plugin =  Plugin}, User, Password, Database) ->
+encode_handshake(#state{}, #handshake{capabilities = Capabilities, charset = Charset, salt = Salt, plugin = Plugin}, User, Password, Database) ->
     %% add authentication plugin support and ssl support if server need
     Flag = plugin_support(Capabilities, ssl_support(Capabilities, basic_flag())),
     %% user name
@@ -738,16 +745,8 @@ set_encoding(State, Encoding) ->
 %%%===================================================================
 %% send packet
 send_packet(State = #state{socket_type = SocketType, socket = Socket, number = Number}, Packet) ->
-    send_packet(SocketType, Socket, Packet, Number + 1),
+    SocketType:send(Socket, <<(byte_size(Packet)):24/little, (Number + 1):8, Packet/binary>>),
     State#state{number = Number + 1}.
-
-%% send it
-send_packet(gen_tcp, Socket, Packet, SequenceNumber) when is_binary(Packet), is_integer(SequenceNumber) ->
-    Data = <<(byte_size(Packet)):24/little, SequenceNumber:8, Packet/binary>>,
-    gen_tcp:send(Socket, Data);
-send_packet(ssl, Socket, Packet, SequenceNumber) when is_binary(Packet), is_integer(SequenceNumber) ->
-    Data = <<(byte_size(Packet)):24/little, SequenceNumber:8, Packet/binary>>,
-    ssl:send(Socket, Data).
 
 %% read packet with default timeout
 read(State = #state{number = Number}) ->
@@ -764,15 +763,8 @@ read(State = #state{data = <<Length:24/little, SequenceNumber:8, Packet:Length/b
     NewState = State#state{data = Rest, number = SequenceNumber},
     {Packet, NewState};
 %% read from stream
-read(State = #state{socket_type = gen_tcp, socket = Socket, data = Data}, Timeout) ->
-    case gen_tcp:recv(Socket, 0, Timeout) of
-        {ok, InData} ->
-            read(State#state{data = <<Data/binary, InData/binary>>}, Timeout);
-        {error, Reason} ->
-            erlang:exit(Reason)
-    end;
-read(State = #state{socket_type = ssl, socket = Socket, data = Data}, Timeout) ->
-    case ssl:recv(Socket, 0, Timeout) of
+read(State = #state{socket_type = SocketType, socket = Socket, data = Data}, Timeout) ->
+    case SocketType:recv(Socket, 0, Timeout) of
         {ok, InData} ->
             read(State#state{data = <<Data/binary, InData/binary>>}, Timeout);
         {error, Reason} ->
@@ -816,25 +808,24 @@ handle_execute_result(State) ->
     case read(State) of
         {<<?OK:8, Rest/binary>>, _} ->
             decode_ok_packet(Rest);
-        {<<?EOF:8, Rest/binary>>, _} ->
-            decode_eof_packet(Rest);
         {<<?ERROR:8, Rest/binary>>, _} ->
             decode_error_packet(Rest);
         {_, NewState} ->
             %% tabular data decode
-            %% {FieldCount, <<>>} = decode_integer(Packet),
-            {FieldsInfo, NewestState} = decode_fields_info(NewState, []),
-            decode_rows(NewestState, FieldsInfo, [])
+            %% {FieldsNumber, <<>>} = decode_integer(Packet),
+            {FieldsInfo, _FieldsInfoEof, NewestState} = decode_fields_info(NewState, []),
+            {Rows, _RowsEof, _FinalState} = decode_rows(NewestState, FieldsInfo, []),
+            #data{fields_info = FieldsInfo, rows = Rows}
     end.
 
 %% decode fields info, read n field packet, read an eof packet
 decode_fields_info(State, List) ->
     case read(State) of
-        {<<?EOF:8, _:4/binary>>, NewState} ->
+        {<<?EOF:8, Rest:4/binary>>, NewState} ->
             %% eof packet
             %% if (not capabilities & CLIENT_DEPRECATE_EOF)
             %% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset.html
-            {lists:reverse(List), NewState};
+            {lists:reverse(List), decode_eof_packet(Rest), NewState};
         {Packet, NewState} ->
             %% column definition
             %% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html
@@ -860,14 +851,12 @@ decode_fields_info(State, List) ->
 %% decode rows, read n field packet, read an eof packet
 decode_rows(State, FieldsInfo, List) ->
     case read(State) of
-        {<<?EOF:8, _:4/binary>>, _NewState} ->
+        {<<?EOF:8, Rest:4/binary>>, NewState} ->
             %% if capabilities & CLIENT_DEPRECATE_EOF
             %% ok packet
             %% else eof packet
             %% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset.html
-            #data{fields_info = FieldsInfo, rows = lists:reverse(List)};
-        {<<?ERROR:8, Rest/binary>>, _NewState} ->
-            decode_error_packet(Rest);
+            {lists:reverse(List), decode_eof_packet(Rest), NewState};
         {Packet, NewState} ->
             This = decode_fields(FieldsInfo, Packet, []),
             decode_rows(NewState, FieldsInfo, [This | List])
@@ -929,12 +918,12 @@ encode_string(Value) ->
 decode_ok_packet(Packet) ->
     {AffectedRows, Rest2} = decode_integer(Packet),
     {InsertId, Rest3} = decode_integer(Rest2),
-    <<Status:16/little, WarningCount:16/little, Message/binary>> = Rest3,
-    #ok{affected_rows = AffectedRows, insert_id = InsertId, warning_count = WarningCount, status = Status, message = Message}.
+    <<Status:16/little, WarningsNumber:16/little, Message/binary>> = Rest3,
+    #ok{affected_rows = AffectedRows, insert_id = InsertId, status = Status, warnings_number = WarningsNumber, message = Message}.
 
 %% decode eof result
-decode_eof_packet(<<WarningCount:16/little, Status:16/little>>) ->
-    #eof{warning_count = WarningCount, status = Status}.
+decode_eof_packet(<<WarningsNumber:16/little, Status:16/little>>) ->
+    #eof{warnings_number = WarningsNumber, status = Status}.
 
 %% decode error packet
 decode_error_packet(<<Code:16/little, Status:6/binary-unit:8, Message/binary>>) ->
@@ -944,66 +933,66 @@ decode_error_packet(<<Code:16/little, Status:6/binary-unit:8, Message/binary>>) 
 %%% data tool part
 %%%===================================================================
 %% bin log type define in mysql release include/binary_log_types.h
--define(MYSQL_TYPE_DECIMAL,           0).
--define(MYSQL_TYPE_TINY,              1).
--define(MYSQL_TYPE_SHORT,             2).
--define(MYSQL_TYPE_LONG,              3).
--define(MYSQL_TYPE_FLOAT,             4).
--define(MYSQL_TYPE_DOUBLE,            5).
--define(MYSQL_TYPE_NULL,              6).
--define(MYSQL_TYPE_TIMESTAMP,         7).
--define(MYSQL_TYPE_LONGLONG,          8).
--define(MYSQL_TYPE_INT24,             9).
--define(MYSQL_TYPE_DATE,              10).
--define(MYSQL_TYPE_TIME,              11).
--define(MYSQL_TYPE_DATETIME,          12).
--define(MYSQL_TYPE_YEAR,              13).
--define(MYSQL_TYPE_NEW_DATE,          14).
--define(MYSQL_TYPE_VARCHAR,           15).
--define(MYSQL_TYPE_BIT,               16).
--define(MYSQL_TYPE_TIMESTAMP2,        17).
--define(MYSQL_TYPE_DATETIME2,         18).
--define(MYSQL_TYPE_TIME2,             19).
--define(MYSQL_TYPE_JSON,              245).
--define(MYSQL_TYPE_NEW_DECIMAL,       246).
--define(MYSQL_TYPE_ENUM,              247).
--define(MYSQL_TYPE_SET,               248).
--define(MYSQL_TYPE_TINY_BLOB,         249).
--define(MYSQL_TYPE_MEDIUM_BLOB,       250).
--define(MYSQL_TYPE_LONG_BLOB,         251).
--define(MYSQL_TYPE_BLOB,              252).
--define(MYSQL_TYPE_VAR_STRING,        253).
--define(MYSQL_TYPE_STRING,            254).
--define(MYSQL_TYPE_GEOMETRY,          255).
+-define(MYSQL_TYPE_DECIMAL,                           0).
+-define(MYSQL_TYPE_TINY,                              1).
+-define(MYSQL_TYPE_SHORT,                             2).
+-define(MYSQL_TYPE_LONG,                              3).
+-define(MYSQL_TYPE_FLOAT,                             4).
+-define(MYSQL_TYPE_DOUBLE,                            5).
+-define(MYSQL_TYPE_NULL,                              6).
+-define(MYSQL_TYPE_TIMESTAMP,                         7).
+-define(MYSQL_TYPE_LONGLONG,                          8).
+-define(MYSQL_TYPE_INT24,                             9).
+-define(MYSQL_TYPE_DATE,                              10).
+-define(MYSQL_TYPE_TIME,                              11).
+-define(MYSQL_TYPE_DATETIME,                          12).
+-define(MYSQL_TYPE_YEAR,                              13).
+-define(MYSQL_TYPE_NEW_DATE,                          14).
+-define(MYSQL_TYPE_VARCHAR,                           15).
+-define(MYSQL_TYPE_BIT,                               16).
+-define(MYSQL_TYPE_TIMESTAMP2,                        17).
+-define(MYSQL_TYPE_DATETIME2,                         18).
+-define(MYSQL_TYPE_TIME2,                             19).
+-define(MYSQL_TYPE_JSON,                              245).
+-define(MYSQL_TYPE_NEW_DECIMAL,                       246).
+-define(MYSQL_TYPE_ENUM,                              247).
+-define(MYSQL_TYPE_SET,                               248).
+-define(MYSQL_TYPE_TINY_BLOB,                         249).
+-define(MYSQL_TYPE_MEDIUM_BLOB,                       250).
+-define(MYSQL_TYPE_LONG_BLOB,                         251).
+-define(MYSQL_TYPE_BLOB,                              252).
+-define(MYSQL_TYPE_VAR_STRING,                        253).
+-define(MYSQL_TYPE_STRING,                            254).
+-define(MYSQL_TYPE_GEOMETRY,                          255).
 
 %% integer format
-convert_type(_,                       undefined) -> undefined;
-convert_type(?MYSQL_TYPE_DECIMAL,     Value)     -> try binary_to_float(Value) catch _:_ -> binary_to_integer(Value) end;
-convert_type(?MYSQL_TYPE_TINY,        Value)     -> binary_to_integer(Value);
-convert_type(?MYSQL_TYPE_SHORT,       Value)     -> binary_to_integer(Value);
-convert_type(?MYSQL_TYPE_LONG,        Value)     -> binary_to_integer(Value);
-convert_type(?MYSQL_TYPE_FLOAT,       Value)     -> try binary_to_float(Value) catch _:_ -> binary_to_integer(Value) end;
-convert_type(?MYSQL_TYPE_DOUBLE,      Value)     -> try binary_to_float(Value) catch _:_ -> binary_to_integer(Value) end;
-convert_type(?MYSQL_TYPE_NULL,        Value)     -> Value;
-convert_type(?MYSQL_TYPE_TIMESTAMP,   <<Y:4/binary, "-", Mo:2/binary, "-", D:2/binary, " ", H:2/binary, ":", Mi:2/binary, ":", S:2/binary>>) -> {{binary_to_integer(Y), binary_to_integer(Mo), binary_to_integer(D)}, {binary_to_integer(H), binary_to_integer(Mi), binary_to_integer(S)}};
-convert_type(?MYSQL_TYPE_LONGLONG,    Value)     -> binary_to_integer(Value);
-convert_type(?MYSQL_TYPE_INT24,       Value)     -> binary_to_integer(Value);
-convert_type(?MYSQL_TYPE_DATE,        <<Y:4/binary, "-", M:2/binary, "-", D:2/binary>>) -> {binary_to_integer(Y), binary_to_integer(M), binary_to_integer(D)};
-convert_type(?MYSQL_TYPE_TIME,        <<H:2/binary, ":", M:2/binary, ":", S:2/binary>>) -> {binary_to_integer(H), binary_to_integer(M), binary_to_integer(S)};
-convert_type(?MYSQL_TYPE_DATETIME,    <<Y:4/binary, "-", Mo:2/binary, "-", D:2/binary, " ", H:2/binary, ":", Mi:2/binary, ":", S:2/binary>>) -> {{binary_to_integer(Y), binary_to_integer(Mo), binary_to_integer(D)}, {binary_to_integer(H), binary_to_integer(Mi), binary_to_integer(S)}};
-convert_type(?MYSQL_TYPE_YEAR,        Value)     -> binary_to_integer(Value);
-convert_type(?MYSQL_TYPE_NEW_DATE,    Value)     -> Value;
-convert_type(?MYSQL_TYPE_VARCHAR,     Value)     -> Value;
-convert_type(?MYSQL_TYPE_BIT,         Value)     -> Value;
-convert_type(?MYSQL_TYPE_JSON,        Value)     -> Value;
-convert_type(?MYSQL_TYPE_NEW_DECIMAL, Value)     -> try binary_to_float(Value) catch _:_ -> binary_to_integer(Value) end;
-convert_type(?MYSQL_TYPE_ENUM,        Value)     -> Value;
-convert_type(?MYSQL_TYPE_SET,         Value)     -> Value;
-convert_type(?MYSQL_TYPE_TINY_BLOB,   Value)     -> Value;
-convert_type(?MYSQL_TYPE_MEDIUM_BLOB, Value)     -> Value;
-convert_type(?MYSQL_TYPE_LONG_BLOB,   Value)     -> Value;
-convert_type(?MYSQL_TYPE_BLOB,        Value)     -> Value;
-convert_type(?MYSQL_TYPE_VAR_STRING,  Value)     -> Value;
-convert_type(?MYSQL_TYPE_STRING,      Value)     -> Value;
-convert_type(?MYSQL_TYPE_GEOMETRY,    Value)     -> Value;
-convert_type(Type,                        _)     -> erlang:exit({unknown_field_type, Type}).
+convert_type(_,                                       undefined) -> undefined;
+convert_type(?MYSQL_TYPE_DECIMAL,                     Value)     -> try binary_to_float(Value) catch _:_ -> binary_to_integer(Value) end;
+convert_type(?MYSQL_TYPE_TINY,                        Value)     -> binary_to_integer(Value);
+convert_type(?MYSQL_TYPE_SHORT,                       Value)     -> binary_to_integer(Value);
+convert_type(?MYSQL_TYPE_LONG,                        Value)     -> binary_to_integer(Value);
+convert_type(?MYSQL_TYPE_FLOAT,                       Value)     -> try binary_to_float(Value) catch _:_ -> binary_to_integer(Value) end;
+convert_type(?MYSQL_TYPE_DOUBLE,                      Value)     -> try binary_to_float(Value) catch _:_ -> binary_to_integer(Value) end;
+convert_type(?MYSQL_TYPE_NULL,                        Value)     -> Value;
+convert_type(?MYSQL_TYPE_TIMESTAMP,                   <<Y:4/binary, "-", Mo:2/binary, "-", D:2/binary, " ", H:2/binary, ":", Mi:2/binary, ":", S:2/binary>>) -> {{binary_to_integer(Y), binary_to_integer(Mo), binary_to_integer(D)}, {binary_to_integer(H), binary_to_integer(Mi), binary_to_integer(S)}};
+convert_type(?MYSQL_TYPE_LONGLONG,                    Value)     -> binary_to_integer(Value);
+convert_type(?MYSQL_TYPE_INT24,                       Value)     -> binary_to_integer(Value);
+convert_type(?MYSQL_TYPE_DATE,                        <<Y:4/binary, "-", M:2/binary, "-", D:2/binary>>) -> {binary_to_integer(Y), binary_to_integer(M), binary_to_integer(D)};
+convert_type(?MYSQL_TYPE_TIME,                        <<H:2/binary, ":", M:2/binary, ":", S:2/binary>>) -> {binary_to_integer(H), binary_to_integer(M), binary_to_integer(S)};
+convert_type(?MYSQL_TYPE_DATETIME,                    <<Y:4/binary, "-", Mo:2/binary, "-", D:2/binary, " ", H:2/binary, ":", Mi:2/binary, ":", S:2/binary>>) -> {{binary_to_integer(Y), binary_to_integer(Mo), binary_to_integer(D)}, {binary_to_integer(H), binary_to_integer(Mi), binary_to_integer(S)}};
+convert_type(?MYSQL_TYPE_YEAR,                        Value)     -> binary_to_integer(Value);
+convert_type(?MYSQL_TYPE_NEW_DATE,                    Value)     -> Value;
+convert_type(?MYSQL_TYPE_VARCHAR,                     Value)     -> Value;
+convert_type(?MYSQL_TYPE_BIT,                         Value)     -> Value;
+convert_type(?MYSQL_TYPE_JSON,                        Value)     -> Value;
+convert_type(?MYSQL_TYPE_NEW_DECIMAL,                 Value)     -> try binary_to_float(Value) catch _:_ -> binary_to_integer(Value) end;
+convert_type(?MYSQL_TYPE_ENUM,                        Value)     -> Value;
+convert_type(?MYSQL_TYPE_SET,                         Value)     -> Value;
+convert_type(?MYSQL_TYPE_TINY_BLOB,                   Value)     -> Value;
+convert_type(?MYSQL_TYPE_MEDIUM_BLOB,                 Value)     -> Value;
+convert_type(?MYSQL_TYPE_LONG_BLOB,                   Value)     -> Value;
+convert_type(?MYSQL_TYPE_BLOB,                        Value)     -> Value;
+convert_type(?MYSQL_TYPE_VAR_STRING,                  Value)     -> Value;
+convert_type(?MYSQL_TYPE_STRING,                      Value)     -> Value;
+convert_type(?MYSQL_TYPE_GEOMETRY,                    Value)     -> Value;
+convert_type(Type,                                        _)     -> erlang:exit({unknown_field_type, Type}).
