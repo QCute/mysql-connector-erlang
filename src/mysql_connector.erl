@@ -327,7 +327,7 @@ delete(Sql, Connector, Timeout) ->
     end.
 
 %% @doc extract the insert id from MySQL result on insert
--spec get_insert_id(Result :: #ok{}) -> InsertId:: non_neg_integer().
+-spec get_insert_id(Result :: #ok{}) -> InsertId :: non_neg_integer().
 get_insert_id(#ok{insert_id = InsertId}) ->
     InsertId.
 
@@ -342,7 +342,7 @@ get_fields_info(#data{fields_info = FieldsInfo}) ->
     FieldsInfo.
 
 %% @doc extract the data rows from MySQL result on data received
--spec get_rows(Result :: #data{}) -> Rows:: list().
+-spec get_rows(Result :: #data{}) -> Rows :: list().
 get_rows(#data{rows = Rows}) ->
     Rows.
 
