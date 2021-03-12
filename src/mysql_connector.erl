@@ -167,7 +167,7 @@
     socket_type :: gen_tcp | ssl,
     socket :: gen_tcp:socket() | ssl:sslsocket(),
     data = <<>> :: binary(),
-    number = 0 :: integer()
+    number = <<>> :: binary()
 }).
 
 %%%===================================================================
@@ -384,7 +384,7 @@ init(Args) ->
     process_flag(trap_exit, true),
     %% connect and login
     State = connect(Args),
-    {ok, State#state{data = <<>>, number = 0}, 60 * 1000}.
+    {ok, State, 60 * 1000}.
 
 %% @doc handle_call
 -spec handle_call(Request :: term(), From :: {pid(), Tag :: term()}, State :: #state{}) -> {reply, Reply :: term(), State :: #state{}, timeout()}.
@@ -447,7 +447,7 @@ connect(Args) ->
 %%%===================================================================
 %% login
 login(State, User, Password, Database) ->
-    {Packet, NewState} = read(State),
+    {Packet, NewState} = receive_packet(State, 0),
     %% the handshake packet
     Handshake = decode_handshake(Packet),
     %% switch to ssl if server need
@@ -478,7 +478,7 @@ switch_to_ssl(State = #state{socket = Socket}, Handshake = #handshake{capabiliti
 
 %% login verify
 verify(State, Handshake, Password) ->
-    case read(State) of
+    case receive_packet(State) of
         {<<?OK:8, _Rest/binary>>, NewState} ->
             %% New auth success
             %% {AffectedRows, Rest1} = decode_packet(Rest),
@@ -636,29 +636,36 @@ set_encoding(State, Encoding) ->
 %%% io part
 %%%===================================================================
 %% send packet
-send_packet(State = #state{socket_type = SocketType, socket = Socket, number = Number}, Packet) ->
+send_packet(State = #state{socket_type = SocketType, socket = Socket, number = <<Number:8>>}, Packet) ->
     SocketType:send(Socket, <<(byte_size(Packet)):24/little, (Number + 1):8, Packet/binary>>),
-    State#state{number = Number + 1}.
+    State#state{number = <<(Number + 1):8>>}.
 
-%% read packet with default timeout
-read(State = #state{number = Number}) ->
-    read(State#state{number = Number + 1}, infinity).
+%% send packet with sequence number
+send_packet(State = #state{socket_type = SocketType, socket = Socket}, Packet, Number) ->
+    SocketType:send(Socket, <<(byte_size(Packet)):24/little, Number:8, Packet/binary>>),
+    State#state{number = <<Number:8>>}.
+
+%% receive packet with default timeout
+receive_packet(State = #state{number = <<Number:8>>}) ->
+    receive_packet_data(State#state{number = <<(Number + 1):8>>}, infinity).
+
+%% receive packet with default timeout and sequence number
+receive_packet(State, Number) ->
+    receive_packet_data(State#state{number = <<Number:8>>}, infinity).
 
 %% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_packets.html
 %% mysql packets
-%% first packet receive not check sequence number
-read(State = #state{data = <<Length:24/little, 0:8, Packet:Length/binary-unit:8, Rest/binary>>}, _) ->
-    NewState = State#state{data = Rest, number = 0},
-    {Packet, NewState};
-%% other pack must check sequence number
-read(State = #state{data = <<Length:24/little, SequenceNumber:8, Packet:Length/binary-unit:8, Rest/binary>>, number = SequenceNumber}, _) ->
-    NewState = State#state{data = Rest, number = SequenceNumber},
-    {Packet, NewState};
-%% read from stream
-read(State = #state{socket_type = SocketType, socket = Socket, data = Data}, Timeout) ->
+receive_packet_data(State = #state{data = <<Length:24/little, Number:1/binary-unit:8, Packet:Length/binary-unit:8, Rest/binary>>, number = Number}, _) ->
+    %% completed packet
+    {Packet, State#state{data = Rest}};
+receive_packet_data(#state{data = <<Length:24/little, SequenceNumber:1/binary-unit:8, _:Length/binary-unit:8, _/binary>>, number = Number}, _) ->
+    %% chaos sequence number
+    erlang:exit(<<"Got packets out of order (self): ", (integer_to_binary(Number))/binary, " (server): ", (integer_to_binary(SequenceNumber))/binary>>);
+receive_packet_data(State = #state{socket_type = SocketType, socket = Socket, data = Data}, Timeout) ->
+    %% not completed packet, receive continue
     case SocketType:recv(Socket, 0, Timeout) of
         {ok, InData} ->
-            read(State#state{data = <<Data/binary, InData/binary>>}, Timeout);
+            receive_packet_data(State#state{data = <<Data/binary, InData/binary>>}, Timeout);
         {error, Reason} ->
             erlang:exit(Reason)
     end.
@@ -670,7 +677,7 @@ read(State = #state{socket_type = SocketType, socket = Socket, data = Data}, Tim
 ping(State) ->
     Packet = <<?COM_PING>>,
     %% query packet sequence number start with 0
-    NewState = send_packet(State#state{data = <<>>, number = -1}, Packet),
+    NewState = send_packet(State, Packet, 0),
     %% get result now
     PingResult = handle_execute_result(NewState),
     not is_record(PingResult, ok) andalso erlang:exit(PingResult).
@@ -682,7 +689,7 @@ ping(State) ->
 quit(State) ->
     Packet = <<?COM_QUIT>>,
     %% Server closes the connection or returns ERR_Packet.
-    send_packet(State#state{data = <<>>, number = -1}, Packet).
+    send_packet(State, Packet, 0).
 
 %%%===================================================================
 %%% execute sql request part
@@ -691,13 +698,13 @@ quit(State) ->
 execute_sql(State, Sql) ->
     Packet = <<?COM_QUERY, (iolist_to_binary(Sql))/binary>>,
     %% packet sequence number start with 0
-    NewState = send_packet(State#state{data = <<>>, number = -1}, Packet),
+    NewState = send_packet(State, Packet, 0),
     %% get response now
     handle_execute_result(NewState).
 
 %% handle execute result
 handle_execute_result(State) ->
-    case read(State) of
+    case receive_packet(State) of
         {<<?OK:8, Rest/binary>>, _} ->
             decode_ok_packet(Rest);
         {<<?ERROR:8, Rest/binary>>, _} ->
@@ -712,7 +719,7 @@ handle_execute_result(State) ->
 
 %% decode fields info, read n field packet, read an eof packet
 decode_fields_info(State, List) ->
-    case read(State) of
+    case receive_packet(State) of
         {<<?EOF:8, Rest:4/binary>>, NewState} ->
             %% eof packet
             %% if (not capabilities & CLIENT_DEPRECATE_EOF)
@@ -721,20 +728,24 @@ decode_fields_info(State, List) ->
         {Packet, NewState} ->
             %% column definition
             %% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query_response_text_resultset_column_definition.html
-            {_Catalog, Rest} = decode_string(Packet),
-            {_Database, Rest2} = decode_string(Rest),
-            {_Table, Rest3} = decode_string(Rest2),
-            %% OrgTable is the real table name if Table is an alias
-            {_OriginTable, Rest4} = decode_string(Rest3),
-            {Name, Rest5} = decode_string(Rest4),
-            %% OrgField is the real field name if Field is an alias
-            {_OriginField, Rest6} = decode_string(Rest5),
+            %% catalog
+            {_Catalog, CatalogRest} = decode_string(Packet),
+            %% schema
+            {_Schema, SchemaRest} = decode_string(CatalogRest),
+            %% table
+            {_Table, TableRest} = decode_string(SchemaRest),
+            %% origin table
+            {_OriginTable, OriginTableRest} = decode_string(TableRest),
+            %% name
+            {Name, NameRest} = decode_string(OriginTableRest),
+            %% origin name
+            {_OriginName, OriginNameRest} = decode_string(NameRest),
             %% extract packet
             %% character set
             %% https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_character_set.html
             %% flags
             %% https://dev.mysql.com/doc/dev/mysql-server/latest/group__group__cs__column__definition__flags.html
-            <<_Metadata:8/little, _CharacterSet:16/little, _Length:32/little, Type:8/little, Flags:16/little, Decimals:8/little, _Rest7/binary>> = Rest6,
+            <<_Metadata:8/little, _CharacterSet:16/little, _Length:32/little, Type:8/little, Flags:16/little, Decimals:8/little, _Rest7/binary>> = OriginNameRest,
             %% collect one
             This = {Name, Type, Flags, Decimals},
             decode_fields_info(NewState, [This | List])
@@ -742,7 +753,7 @@ decode_fields_info(State, List) ->
 
 %% decode rows, read n field packet, read an eof packet
 decode_rows(State, FieldsInfo, List) ->
-    case read(State) of
+    case receive_packet(State) of
         {<<?EOF:8, Rest:4/binary>>, NewState} ->
             %% if capabilities & CLIENT_DEPRECATE_EOF
             %% ok packet
@@ -770,7 +781,7 @@ decode_fields([{_, Type, _, _} | Fields], Packet, List) ->
 %% length-decoded-integer
 decode_integer(<<Value:8, Rest/binary>>) when Value < 16#FB ->
     {Value, Rest};
-decode_integer(<<251:8, Rest/binary>>) ->
+decode_integer(<<16#FB:8, Rest/binary>>) ->
     {undefined, Rest};
 decode_integer(<<16#FC:8, Value:16/little, Rest/binary>>) ->
     {Value, Rest};

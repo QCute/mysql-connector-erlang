@@ -11,7 +11,7 @@
 ```
 {deps, [
   ...
-  {volley, {git, "https://github.com/QCute/mysql-connector-erlang.git", {branch, "master"}}}
+  {mysql_connector, {git, "https://github.com/QCute/mysql-connector-erlang.git", {branch, "master"}}}
 ]}.
 ```
 
@@ -24,7 +24,7 @@ application:start(mysql_connector).
 ```
 ConnectorArgs = [{host, "localhost"}, {port,3306}, {user,"root"}, {password,"root"}, {database,"test"}, {encoding, "utf8mb4"}],
 {ok, Pid} = mysql_connector:start_link(ConnectorArgs),
-mysql_connector:select(Pid, "select 1").
+mysql_connector:select("select 1", Pid).
 ```
 
 * start with [pool](https://github.com/QCute/volley)
@@ -34,5 +34,5 @@ PoolArgs = [{worker, {mysql_connector, start_link, [ConnectorArgs]}}, {size, 4}]
 %% example use volley 
 volley:start_pool(mysql_connector, PoolArgs).
 {ok, Worker} = volley:get(mysql_connector),
-mysql_connector:select(Worker, "select 1").
+mysql_connector:select("select 1", Worker).
 ```
