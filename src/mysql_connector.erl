@@ -242,8 +242,8 @@ query(Sql, Connector, Timeout) ->
             InsertId;
         #data{rows = Rows} ->
             Rows;
-        #error{code = Code, message = Message} ->
-            erlang:exit({mysql_error, {Sql, Code, Message}})
+        #error{code = Code, status = Status, message = Message} ->
+            erlang:exit({mysql_error, Sql, {Code, Status, Message}})
     end.
 
 %% @doc select
