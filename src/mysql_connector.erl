@@ -658,7 +658,7 @@ receive_packet(State, Number) ->
 receive_packet_data(State = #state{data = <<Length:24/little, Number:1/binary-unit:8, Packet:Length/binary-unit:8, Rest/binary>>, number = Number}, _) ->
     %% completed packet
     {Packet, State#state{data = Rest}};
-receive_packet_data(#state{data = <<Length:24/little, SequenceNumber:1/binary-unit:8, _:Length/binary-unit:8, _/binary>>, number = Number}, _) ->
+receive_packet_data(#state{data = <<Length:24/little, SequenceNumber:8, _:Length/binary-unit:8, _/binary>>, number = <<Number:8>>}, _) ->
     %% chaos sequence number
     erlang:exit(<<"Got packets out of order (self): ", (integer_to_binary(Number))/binary, " (server): ", (integer_to_binary(SequenceNumber))/binary>>);
 receive_packet_data(State = #state{socket_type = SocketType, socket = Socket, data = Data}, Timeout) ->
